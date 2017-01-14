@@ -1,7 +1,8 @@
 import com.typesafe.scalalogging.LazyLogging
 
 import org.apache.spark.{SparkConf,SparkContext}
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{SparkSession,Row}
+import org.apache.spark.sql.types._
 
 import scala.util.Try
 
@@ -12,28 +13,72 @@ object SparkProf extends LazyLogging {
     val conf = new SparkConf().setAppName("spark_prof").setMaster("local[2]")
     val sc = new SparkContext(conf)
 
-    val year_index = 20
+    // set to true to run in SparkSQL/DataFrame mode, false to run in RDD mode
+    val useSparkSql = true
+    //
+    // number of times to repeat final map(row(yearIndex)).reduce(+)
+    val lastQueryRepeat = 10
+
+    // ms to sleep in between lastQueryRepeat
+    val sleepMs = 5000
+
+    val yearIndex = 20
 
     val lines = sc.textFile("/tmp/simple_data.csv")
-    val stringFields = lines.map(line => line.split(",")).filter(fields => fields.length > year_index)
-    val data = stringFields.map(fields => fields.patch(year_index, Array(Try(fields(year_index).toInt).getOrElse(0)), 1))
+    val stringFields = lines.map(line => line.split(","))
+    val fullFieldLength = stringFields.first.length
+    val completeFields = stringFields.filter(fields => fields.length == fullFieldLength)
+    val data = completeFields.map(fields => fields.patch(yearIndex, Array(Try(fields(yearIndex).toInt).getOrElse(0)), 1))
 
-    // we want to cache the entire data in memory
-    data.cache()
 
-    // run an operation to ensure full data is in cache/memory
-    println(data.map(d => d.length).max)
+    if(useSparkSql) {
+      val ss = SparkSession.builder.config(conf).getOrCreate()
 
-    val sleep_ms = 5000
-    logger.info(s"Sleeping for $sleep_ms...")
-    Thread.sleep(sleep_ms)
-    logger.info("Resuming")
+      import ss.implicits._
 
-    //see the data
-    //data.map(d => d(year_index)).take(10).foreach(println)
+      val fields = completeFields.first
+        .map(fieldName => fieldName match {
+          case "Year" => StructField(fieldName, IntegerType, nullable = true)
+          case _ => StructField(fieldName, StringType, nullable = true)
+        })
+      val schema = StructType(fields)
 
-    // pull out the year column, then compute a sum
-    println(data.map(d => d(year_index).asInstanceOf[Int]).reduce((y1, y2) => y1 + y2))
+      val dataFrame = ss.createDataFrame(data.map(d => Row(d: _*)), schema)
 
+      logger.info("\n\n=============================================== cache entire data-frame in memory")
+      dataFrame.cache()
+
+      logger.info("\n\n=============================================== run map(length).max to populate cache")
+      println(dataFrame.map(r => r.length).reduce((l1, l2) => Math.max(l1, l2)))
+      
+      logger.info("\n\n=============================================== re-run map(length).max to sanity check")
+      println(dataFrame.map(r => r.length).reduce((l1, l2) => Math.max(l1, l2)))
+
+      for(loopIndex <- 1 to lastQueryRepeat) {
+        logger.info("\n\n=============================================== sleep for $sleepMs...")
+        Thread.sleep(sleepMs)
+
+        logger.info("\n\n=============================================== run map(row(yearIndex)).reduce(+)")
+        println(dataFrame.map(r => r(yearIndex).asInstanceOf[Int]).reduce((y1, y2) => y1 + y2))
+      }
+
+    } else {
+      logger.info("\n\n=============================================== cache entire data-frame in memory")
+      data.cache()
+
+      logger.info("\n\n=============================================== re-run map(length).max to sanity check")
+      println(data.map(r => r.length).reduce((l1, l2) => Math.max(l1, l2)))
+
+      logger.info("\n\n=============================================== re-run map(length).max to sanity check")
+      println(data.map(r => r.length).reduce((l1, l2) => Math.max(l1, l2)))
+
+      for(loopIndex <- 1 to lastQueryRepeat) {
+        logger.info("\n\n=============================================== sleep for $sleepMs...")
+        Thread.sleep(sleepMs)
+
+        logger.info("\n\n=============================================== run map(row(yearIndex)).reduce(+)")
+        println(data.map(d => d(yearIndex).asInstanceOf[Int]).reduce((y1, y2) => y1 + y2))
+      }
+    }
   }
 }
