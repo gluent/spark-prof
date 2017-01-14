@@ -31,6 +31,10 @@ object SparkProf extends LazyLogging {
     val data = completeFields.map(fields => fields.patch(yearIndex, Array(Try(fields(yearIndex).toInt).getOrElse(0)), 1))
 
 
+    def log(msg: String) = logger.info(s"\n\n============================================= $msg =============================================")
+
+
+
     if(useSparkSql) {
       val ss = SparkSession.builder.config(conf).getOrCreate()
 
@@ -45,38 +49,38 @@ object SparkProf extends LazyLogging {
 
       val dataFrame = ss.createDataFrame(data.map(d => Row(d: _*)), schema)
 
-      logger.info("\n\n=============================================== cache entire data-frame in memory")
+      log("cache entire data-frame in memory")
       dataFrame.cache()
 
-      logger.info("\n\n=============================================== run map(length).max to populate cache")
+      log("run map(length).max to populate cache")
       println(dataFrame.map(r => r.length).reduce((l1, l2) => Math.max(l1, l2)))
       
-      logger.info("\n\n=============================================== re-run map(length).max to sanity check")
+      log("re-run map(length).max to sanity check")
       println(dataFrame.map(r => r.length).reduce((l1, l2) => Math.max(l1, l2)))
 
       for(loopIndex <- 1 to lastQueryRepeat) {
-        logger.info("\n\n=============================================== sleep for $sleepMs...")
+        log(s"$loopIndex] sleep for $sleepMs...")
         Thread.sleep(sleepMs)
 
-        logger.info("\n\n=============================================== run map(row(yearIndex)).reduce(+)")
+        log(s"$loopIndex] run map(row(yearIndex)).reduce(+)")
         println(dataFrame.map(r => r(yearIndex).asInstanceOf[Int]).reduce((y1, y2) => y1 + y2))
       }
 
     } else {
-      logger.info("\n\n=============================================== cache entire data-frame in memory")
+      log("cache entire data-frame in memory")
       data.cache()
 
-      logger.info("\n\n=============================================== re-run map(length).max to sanity check")
+      log("re-run map(length).max to sanity check")
       println(data.map(r => r.length).reduce((l1, l2) => Math.max(l1, l2)))
 
-      logger.info("\n\n=============================================== re-run map(length).max to sanity check")
+      log("re-run map(length).max to sanity check")
       println(data.map(r => r.length).reduce((l1, l2) => Math.max(l1, l2)))
 
       for(loopIndex <- 1 to lastQueryRepeat) {
-        logger.info("\n\n=============================================== sleep for $sleepMs...")
+        log(s"$loopIndex] sleep for $sleepMs...")
         Thread.sleep(sleepMs)
 
-        logger.info("\n\n=============================================== run map(row(yearIndex)).reduce(+)")
+        log(s"$loopIndex] run map(row(yearIndex)).reduce(+)")
         println(data.map(d => d(yearIndex).asInstanceOf[Int]).reduce((y1, y2) => y1 + y2))
       }
     }
