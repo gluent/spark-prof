@@ -10,7 +10,7 @@ import scala.util.Try
 object SparkProf extends LazyLogging {
 
   def main(args: Array[String]) = {
-    val conf = new SparkConf().setAppName("spark_prof").setMaster("local[2]")
+    val conf = new SparkConf().setAppName("spark_prof")
     val sc = new SparkContext(conf)
 
     // set to true to run in SparkSQL/DataFrame mode, false to run in RDD mode
@@ -67,7 +67,7 @@ object SparkProf extends LazyLogging {
       }
 
     } else {
-      log("cache entire data-frame in memory")
+      log("cache entire RDD in memory")
       data.cache()
 
       log("re-run map(length).max to sanity check")
