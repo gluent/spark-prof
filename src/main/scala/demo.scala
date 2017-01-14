@@ -18,17 +18,21 @@ object SparkProf extends LazyLogging {
     val stringFields = lines.map(line => line.split(",")).filter(fields => fields.length > year_index)
     val data = stringFields.map(fields => fields.patch(year_index, Array(Try(fields(year_index).toInt).getOrElse(0)), 1))
 
-    //data.cache()
+    // we want to cache the entire data in memory
+    data.cache()
 
-    //println(data.map(d => d.length).max)
+    // run an operation to ensure full data is in cache/memory
+    println(data.map(d => d.length).max)
 
     val sleep_ms = 5000
     logger.info(s"Sleeping for $sleep_ms...")
     Thread.sleep(sleep_ms)
     logger.info("Resuming")
 
+    //see the data
     //data.map(d => d(year_index)).take(10).foreach(println)
 
+    // pull out the year column, then compute a sum
     println(data.map(d => d(year_index).asInstanceOf[Int]).reduce((y1, y2) => y1 + y2))
 
   }
