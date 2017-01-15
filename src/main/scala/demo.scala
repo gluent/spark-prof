@@ -11,11 +11,14 @@ object SparkProf extends LazyLogging {
 
   def main(args: Array[String]) = {
     val conf = new SparkConf().setAppName("spark_prof")
+
+    println(s"Configuration:\n${conf.toDebugString}")
+
     val sc = new SparkContext(conf)
 
     // set to true to run in SparkSQL/DataFrame mode, false to run in RDD mode
-    val useSparkSql = true
-    //
+    val useSparkSql = Try(conf.getOption("spark.demo.sparksql").getOrElse("false").toBoolean).getOrElse(false)
+    
     // number of times to repeat final map(row(yearIndex)).reduce(+)
     val lastQueryRepeat = 10
 
@@ -24,7 +27,7 @@ object SparkProf extends LazyLogging {
 
     val yearIndex = 20
 
-    val lines = sc.textFile("/tmp/simple_data.csv")
+    val lines = sc.textFile("/tmp/simple_data.csv").repartition(1)
     val stringFields = lines.map(line => line.split(","))
     val fullFieldLength = stringFields.first.length
     val completeFields = stringFields.filter(fields => fields.length == fullFieldLength)

@@ -8,5 +8,5 @@ cp target/scala*/*jar /tmp
 cp -n simple_data.csv /tmp
 
 # due to our use of some gcc (?) build tools, our sudo doesn't accept -u: but /usr/bin/sudo does
-/usr/bin/sudo -u hive $SPARK_HOME/bin/spark-submit --driver-memory 4g --conf spark.memory.fraction=0.8 --class SparkProf /tmp/spark_prof-assembly-1.0.jar
+/usr/bin/sudo -u hive $SPARK_HOME/bin/spark-submit --driver-memory 4g --conf spark.demo.sparksql=true --conf spark.memory.fraction=0.8 --class SparkProf /tmp/spark_prof-assembly-1.0.jar
 
