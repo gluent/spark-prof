@@ -30,13 +30,27 @@ int main(int argc, char** argv) {
 
   const bool print_data = false;
   
-  const uint32_t vector_bytes = 16;
+  const uint32_t vector_bytes = 32;
+
+  uint32_t input_rows;
+  std::cout << "Input rows to generate: ";
+  std::cin >> input_rows;
+  std::cin.get();
+
+  uint32_t columns = 1;
+  std::cout << "Input columns to generate (vectorisation enabled if == 1): ";
+  std::cin >> columns;
+  std::cin.get();
   
+  size_t column_stride = 0;
+  if(columns > 1) {
+    std::cout << "Input column offset stride: ";
+    std::cin >> column_stride;
+    std::cin.get();
+  }
+
   // ensure rows is a multiple of vector_bytes
-  const uint32_t rows = (100000000 / vector_bytes) * vector_bytes;
-  
-  // set columns to 1 to show max potential vectorisation
-  const uint32_t columns = 1;
+  const uint32_t rows = (input_rows / vector_bytes) * vector_bytes;
 
   const size_t column_bytes = 4, row_bytes = columns * column_bytes;
 
@@ -49,8 +63,7 @@ int main(int argc, char** argv) {
   }
 
   // generate some simple data
-  std::cout << "Generating data\n";
-  const size_t column_stride = 1;
+  std::cout << "Generating " << rows << " rows (aligned to " << vector_bytes << " byte vectorisation), " << columns << " columns\n";
   for(size_t i = 1; i < rows; ++i) {
     offsets[i] = (offsets[i-1]+column_stride) % columns;
   }
@@ -83,7 +96,7 @@ int main(int argc, char** argv) {
 
   uint32_t result;
   while(true) {
-    std::cout << "\n\npress a key to continue\n";
+    std::cout << "\nNON-VECTORISED - press a key ";
     std::cin.get();
 
     result = 0;
@@ -98,7 +111,7 @@ int main(int argc, char** argv) {
 
     // vectorized algorithm only works with contiguous values
     if(columns == 1) {
-      std::cout << "\n\ncolumns == 1, press a key to run vectorised sum\n";
+      std::cout << "\nVECTORISED - press a key ";
       std::cin.get();
 
       typedef uint32_t v4i __attribute__ ((vector_size (vector_bytes)));
@@ -115,7 +128,7 @@ int main(int argc, char** argv) {
         result += vec_result_array[i];
       }
 
-      std::cout << "vec result: " << result << "\n";
+      std::cout << "result: " << result << "\n";
 
     } else {
       std::cout << "columns != 1, skipping vectorised sum\n";
